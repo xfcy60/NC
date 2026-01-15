@@ -1,0 +1,24 @@
+# === add_one_C.in: Insert one C atom and assign it a temperature each time it is invoked. ===
+
+group newC empty
+
+#Carbon atom generation region，and insert new carbon atoms
+region R_newC block -15.0 15.0 -15.0 15.0 -15.0 15.0
+variable u equal round(random(1,1000000,12345))
+create_atoms 2 random 1 ${u} R_newC overlap 5.0 maxtry 50 units box
+run 0 post no
+
+#Select the newly added carbon atoms and assign velocities only to them.
+variable lastID equal c_cMax
+variable pick   atom "id == v_lastID"
+group newC id ${lastID}
+compute myT newC temp/partial 1 1 1
+compute_modify myT extra/dof 0
+variable v equal round(random(1,1000000,12345))
+velocity newC create 1500.0 ${v} dist gaussian mom no rot no temp myT
+
+#Prepare for the next addition of new carbon atoms.
+uncompute myT
+region R_newC delete
+group newC delete
+group newC empty

@@ -1,0 +1,2 @@
+The data processing uses Python. Place the trajectory files in the same folder.
+Extract the dihedral angles of edge carbon atoms; running the script sequentially will yield the dihedral angle information between the edge C atoms and Ni.

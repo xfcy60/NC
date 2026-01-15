@@ -1,0 +1,9 @@
+The file mainly consists of four parts.
+LAMMPS input file : in.lammps
+A module for inserting carbon atoms and assigning them an initial temperature:add_one_C.in
+Atomic coordinate file : lammps.data
+Potential file : NiCH.ff
+The potential file was obtained from Mueller(https://doi.org/10.1021/jp9035056)
+During the later simulations, the whole system was shifted every 100 steps so that the Ni particle’s center of mass remained at the origin for easier data analysis.
+In the early tests, no such shift was applied and all atoms moved freely.
+The code is run on the HPC facilities at Southeast University, using version of LAMMPS 2Aug2023.

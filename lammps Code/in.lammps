@@ -1,0 +1,85 @@
+restart 1000000 tmp.restart
+units real
+boundary p p p
+atom_style full
+neighbor 3 bin
+neigh_modify every 1 delay 0 check yes
+read_data lammps.data
+mass 1 58.693 # ni
+mass 2 12.011 # c
+
+#Potential function and related parameters
+pair_style reaxff NULL safezone 3.0 mincap 300
+pair_coeff * * NiCH.ff Ni C 
+
+#Group definition
+group ni_atoms type 1
+group carbon_atoms type 2
+
+#Charge equilibration
+fix myqeq all qeq/reaxff 1 0.0 10.0 1.0e-6 reaxff maxiter 400
+
+#Energy minimization
+min_style cg
+minimize 1.0e-4 1.0e-6 100 1000
+
+#Velocity initialization
+variable s equal round(random(1,1000000,12345))
+velocity all create 1500.0 ${s} dist gaussian mom no rot no
+
+#Group atoms to identify free carbon atoms.
+compute c3_1 all coord/atom cutoff 3.0
+run 0
+variable free_carbon_count_1 atom "c_c3_1==0"
+group free_carbon dynamic all var free_carbon_count_1
+variable free_carbon_count equal count(free_carbon)
+
+#Translate all atoms so that the Ni atoms are aligned to the origin.
+compute         comNi   ni_atoms com
+variable        dx equal -c_comNi[1]
+variable        dy equal -c_comNi[2]
+variable        dz equal -c_comNi[3]
+run             0 post no
+
+#Prepare for adding new carbon atoms and initializing velocities.
+compute         cID  all property/atom id
+compute         cMax all reduce max c_cID
+run             0 post no
+group           newC empty
+
+#Screen output and file output
+thermo 10000
+thermo_style custom step pe ke etotal temp vol press v_free_carbon_count
+#fix free_c all ave/time 1 1 10000  free_carbon.file
+dump 2 all custom 1000 ni.lammpstrj id mol c_c3_1 v_free_carbon_count_1 type q x y z vx vy vz
+
+variable        nevery        equal 100
+
+#Run quickly at the target temperature.
+fix integ  all nve
+fix ber_temp all temp/berendsen 1500.0 1500.0 $(100.0*dt)
+timestep 0.25
+run 100000 pre yes post yes every ${nevery} "run 0 post no" "displace_atoms all move v_dx v_dy v_dz units box"
+write_data ni-out100000.data
+unfix  integ
+unfix  ber_temp
+
+#Apply dynamic temperature control after adding atoms.
+compute mdtemp all temp
+compute_modify mdtemp dynamic/dof yes
+
+variable step loop 500
+label loop
+
+#Add new atoms when the number of free carbon atoms is less than 1.
+fix mynvt all nvt temp 1500.0 1500.0 $(100.0*dt)
+fix_modify mynvt temp mdtemp
+if "${free_carbon_count}<1" then "include add_one_C.in"
+run 20000 pre yes post yes every ${nevery} "run 0 post no" "displace_atoms all move v_dx v_dy v_dz units box"
+unfix mynvt
+#Perform tfMC calculations.
+variable t equal round(random(1,1000000,12345))
+fix 1 all tfmc 0.12 1500.0 ${t} com 1 1 1 rot
+run 20000 pre yes post yes every ${nevery} "run 0 post no" "displace_atoms all move v_dx v_dy v_dz units box"
+unfix 1
+jump SELF loop

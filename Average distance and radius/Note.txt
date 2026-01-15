@@ -1,0 +1,1 @@
+Place the trajectory files in the same folder. Run the Python script sequentially to obtain the fitted radius of the carbon cap and the average distance of the carbon atoms.
